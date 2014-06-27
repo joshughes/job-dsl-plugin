@@ -1,19 +1,20 @@
 buildscript {
     repositories {
         mavenCentral()
+        mavenLocal()
         maven {
             name 'jenkins-ci-plugins'
             url('http://maven.jenkins-ci.org/content/repositories/releases')
         }
     }
-    dependencies { classpath('org.jenkins-ci.tools:gradle-jpi-plugin:0.5.0') }
+    dependencies { classpath('org.jenkins-ci.tools:gradle-jpi-plugin:0.5.2') }
 }
 apply plugin: 'jpi'
 
 description = "Jenkins plugin to leverage job-dsl-core to programmatic create jobs from inside Jenkins."
 
 jenkinsPlugin {
-    coreVersion = '1.480'
+    coreVersion = '1.509'
     displayName = 'Job DSL'
     url = 'https://wiki.jenkins-ci.org/display/JENKINS/Job+DSL+Plugin'
     gitHubUrl = 'https://github.com/jenkinsci/job-dsl-plugin'
@@ -49,7 +50,7 @@ dependencies {
     optionalJenkinsPlugins([group: 'org.jenkins-ci.plugins', name: 'cloudbees-folder', version: '4.2', ext: 'jar'])
     optionalJenkinsPlugins([group: 'org.jenkins-ci.plugins', name: 'credentials', version: '1.9.4', ext: 'jar'])
     optionalJenkinsPlugins([group: 'org.jenkins-ci.plugins', name: 'javadoc', version: '1.1', ext: 'jar'])
-    optionalJenkinsPlugins([group: 'org.jenkins-ci.main', name: 'maven-plugin', version: '1.480', ext: 'jar'])
+    optionalJenkinsPlugins([group: 'org.jenkins-ci.main', name: 'maven-plugin', version: '1.509', ext: 'jar'])
 }
 
 tasks.jpi.manifest.attributes(["PluginFirstClassLoader": "true" ])
