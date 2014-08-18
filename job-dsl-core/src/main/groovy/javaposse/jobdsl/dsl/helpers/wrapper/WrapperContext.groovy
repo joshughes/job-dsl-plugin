@@ -17,11 +17,6 @@ class WrapperContext implements Context {
         this.type = jobType
     }
 
-    WrapperContext(List<Node> wrapperNodes, JobType jobType, JobManagement jobManagement) {
-        this(jobType, jobManagement)
-        this.wrapperNodes = wrapperNodes
-    }
-
     def timestamps() {
         def nodeBuilder = new NodeBuilder()
         wrapperNodes << nodeBuilder.'hudson.plugins.timestamper.TimestamperBuildWrapper'()
@@ -49,6 +44,60 @@ class WrapperContext implements Context {
         }
     }
 
+    /**
+    /** Support for builds using a rbenv environment.
+    *
+    * Generates XML:
+    * <buildWrappers>
+    *   <ruby-proxy-object>
+    *     <ruby-object ruby-class="Jenkins::Tasks::BuildWrapperProxy" pluginid="rbenv">
+    *       <pluginid pluginid="rbenv" ruby-class="String">rbenv</pluginid>
+    *       <object ruby-class="RbenvWrapper" pluginid="rbenv">
+    *         <rbenv__root pluginid="rbenv" ruby-class="String">$HOME/.rbenv</rbenv__root>
+    *         <ruby__build__repository pluginid="rbenv" ruby-class="String">https://github.com/sstephenson/ruby-build.git</ruby__build__repository>
+    *         <rbenv__revision pluginid="rbenv" ruby-class="String">master</rbenv__revision>
+    *         <rbenv__repository pluginid="rbenv" ruby-class="String">https://github.com/sstephenson/rbenv.git</rbenv__repository>
+    *         <ruby__build__revision pluginid="rbenv" ruby-class="String">master</ruby__build__revision>
+    *         <gem__list pluginid="rbenv" ruby-class="String">bundler,rake</gem__list>
+    *         <version pluginid="rbenv" ruby-class="String">1.9.3-p484</version>
+    *         <ignore__local__version ruby-class="FalseClass" pluginid="rbenv"/>
+    *       </object>
+    *     </ruby-object>
+    *   </ruby-proxy-object>
+    * </buildWrappers>
+    */
+    
+    def rbenv(String rubyVersion,Closure rbenvClosure) {
+        rbenv(rubyVersion,null,rbenvClosure)
+    }
+
+    def rbenv(String rubyVersion, List gems = [], Closure rbenvClosure = null) {
+        RbenvContext rbenvContext = new RbenvContext()
+        def nodeBuilder = new NodeBuilder()
+        AbstractContextHelper.executeInContext(rbenvClosure, rbenvContext)
+        String gemString = ''
+
+        for ( gem in gems ) {
+            gemString += gem + ','
+        }
+
+        wrapperNodes << nodeBuilder.'ruby-proxy-object' {
+            'ruby-object'('ruby-class': 'Jenkins::Plugin::Proxies::BuildWrapper', pluginid: 'rbenv') {
+                pluginid('rvm', [pluginid: 'rbenv', 'ruby-class': 'String'])
+                object('ruby-class': 'RbenvWrapper', pluginid: 'rbenv') {
+                    version(rubyVersion, [pluginid: 'rbenv', 'ruby-class': 'String'])
+                    rbenv_root(rbenvContext.root, [pluginid: 'rbenv', 'ruby-class': 'String'])
+                    ruby__build__repository(rbenvContext.rubyBuildRepository, [pluginid: 'rbenv', 'ruby-class': 'String'])
+                    ruby__build__revision(rbenvContext.rubyBuildRevision, [pluginid: 'rbenv', 'ruby-class': 'String'])
+                    rbenv__repository(rbenvContext.rbenvRepository, [pluginid: 'rbenv', 'ruby-class': 'String'])
+                    rbenv__revision(rbenvContext.rbenvRevision, [pluginid: 'rbenv', 'ruby-class': 'String'])
+                    gem__list(gemString,[pluginid: 'rbenv', 'ruby-class': 'String'])
+                    ignore__local__version([pluginid: 'rbenv','ruby-class': rbenvContext.ignoreLocalVersion])
+                }
+            }
+        }
+
+    }
     /**
      * Support for builds using a rvm environment.
      *
@@ -148,7 +197,7 @@ class WrapperContext implements Context {
                     case Timeout.likelyStuck:
                         break
                     case Timeout.noActivity:
-                        delegate.timeout(ctx.noActivitySeconds)
+                        delegate.timeout(ctx.noActivitySeconds * 1000)
                         break
                     default:
                         Preconditions.checkArgument(false, 'Timeout type must be selected!')
@@ -430,7 +479,7 @@ class WrapperContext implements Context {
      * @param releaseClosure attributes and steps used by the plugin
      */
     def release(Closure releaseClosure) {
-        ReleaseContext releaseContext = new ReleaseContext()
+        ReleaseContext releaseContext = new ReleaseContext(jobManagement)
         AbstractContextHelper.executeInContext(releaseClosure, releaseContext)
 
         NodeBuilder nodeBuilder = new NodeBuilder()
@@ -481,7 +530,7 @@ class WrapperContext implements Context {
             patterns(context.patternNodes)
             deleteDirs(context.deleteDirectories)
             cleanupParameter(context.cleanupParameter ?: '')
-            deleteCommand(context.deleteCommand ?: '')
+            externalDelete(context.deleteCommand ?: '')
         }
     }
 
